@@ -56,7 +56,7 @@ The easiest way to get started is to clone the repository:
 
 ```sh
 # Get the latest snapshot
-$ git clone https://github.com/ed3ath/cbtracker
+$ git clone https://github.com/KrIstIaN430/cbtracker
 $ cd cbtracker
 
 # Install dependencies
