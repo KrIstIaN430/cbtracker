@@ -48,11 +48,13 @@ async function subscribe (address) {
                             "Reward" : web3.utils.fromWei(BigInt(skillGain).toString(), 'ether'),
                             "Gas" : web3.utils.fromWei(BigInt(gasCost).toString(), 'ether'),
                         }
-                        fightResult.push(temp)
-                        await loadData()
-                        txs.push(result.transactionHash)
+                        if (!txs.includes(result.transactionHash)){
+                            fightResult.push(temp)
+                            txs.push(result.transactionHash)
+                            await loadData()
+                        }
                     }
-                })
+                })                
             }
         }catch(e) {
             console.log(e)
@@ -108,6 +110,7 @@ async function loadData() {
     fights = 0
     wins = 0
     $table.html('');
+    console.log(fightResult)
     const fRowHtml = await Promise.all(fightResult.map(async (fight, i) => {
         let rowHtml = ''
         skill = convertToFiat(parseFloat(fight['Reward']))
