@@ -1,8 +1,9 @@
-let subs = []
+let subs = {}
+let names = []
 let txs = []
 let fightInterval = 10 //seconds
 var currCurrency = 'php'
-
+let totalSummary = {}
 var skillPrice = 0
 var localPrice = 0
 var bnbPrice = 0
@@ -17,10 +18,13 @@ $('document').ready(async () => {
 
 const fightAddress = $('#fight-address')
 var fightResult = []
-var $table = $('#table-accounts tbody')
+var $fightsTable = $('#fight-logs tbody')
+var $earningsTable = $('#earnings-summary tbody')
 
-async function subscribe (address) {
-    console.log('Subscribed:', address)
+async function subscribe (name, address) {
+    names.push(name)
+    console.log('Subscribed:', name, address)
+    totalSummary[address] = [name, 0, 0, 0, 0]
     subs[address] = setInterval(async() => {
         try {
             const latestBlock = await getLatestBlock()
@@ -40,11 +44,12 @@ async function subscribe (address) {
                         const gasCost = tx.gasPrice * receipt.gasUsed
                         // fightResult.append(`${owner},${(parseInt(playerRoll) > parseInt(enemyRoll) ? 'Win' : 'Lost')},${character},${weapon},${playerRoll},${enemyRoll},${web3.utils.fromWei(BigInt(skillGain).toString(), 'ether')},${xpGain},${web3.utils.fromWei(BigInt(gasCost).toString(), 'ether')}\n`)
                         const charData = await characterFromContract(character, await getCharacterData(character))
+                        let win = (parseInt(playerRoll) > parseInt(enemyRoll) ? 'Win' : 'Lost')
                         temp = {
-                            "Name" : NaN,
+                            "Name" : name,
                             "Address" : owner,
                             "Level" : charData.level + 1,
-                            "Result" : (parseInt(playerRoll) > parseInt(enemyRoll) ? 'Win' : 'Lost'),
+                            "Result" :win,
                             "Reward" : web3.utils.fromWei(BigInt(skillGain).toString(), 'ether'),
                             "Gas" : web3.utils.fromWei(BigInt(gasCost).toString(), 'ether'),
                         }
@@ -52,6 +57,12 @@ async function subscribe (address) {
                             fightResult.push(temp)
                             txs.push(result.transactionHash)
                             await loadData()
+                            wins = (win == "Win") ? totalSummary[owner][1] + 1: totalSummary[owner][1]
+                            let fights = totalSummary[owner][2] + 1
+                            let reward = totalSummary[owner][3] + parseFloat(web3.utils.fromWei(BigInt(skillGain).toString(), 'ether'))
+                            let gas = totalSummary[owner][4] + gasCost
+                            totalSummary[owner] = [name, wins, fights, reward, gas]
+                            await addToSummary()                            
                         }
                     }
                 })                
@@ -81,11 +92,13 @@ async function priceTicker() {
 }
 
 async function addAccount() {
+    var name = $('#logger-name').val().trim()
     var address = $('#logger-address').val().trim()
-    if (!Object.keys(subs).includes(address) && isAddress(address)) {
-        await subscribe(address)
+    if (!Object.keys(subs).includes(address) && isAddress(address) && !(names.includes(name))) {
+        await subscribe(name, address)
         fightAddress.append(`${address}\n`)
         $('#modal-add-account').modal('hide')
+        $('#logger-name').val('')
         // test()
         // await loadData()
     }
@@ -103,13 +116,13 @@ function test(){
     fightResult.push(temp)
 }
 async function loadData() {
-    $totalElement = $table.children().last()
+    $totalElement = $fightsTable.children().last()
     totalSkill = 0
     totalProfit = 0
     totalGas = 0
     fights = 0
     wins = 0
-    $table.html('');
+    $fightsTable.html('');
     console.log(fightResult)
     const fRowHtml = await Promise.all(fightResult.map(async (fight, i) => {
         let rowHtml = ''
@@ -122,26 +135,49 @@ async function loadData() {
         fights += 1
         wins += fight['Result'] === "Win" ? 1 : 0
         rowHtml += ` <tr class="text-white align-middle" data-row="${i}">
-                                <td rowspan="1" class='align-middle'>${fight['Name']}</td>
-                                <td rowspan="1" class='align-middle'>${fight['Address'].substr(0, 6)}...${fight['Address'].substr(-4, 4)}</td>
-                                <td rowspan="1" class='align-middle'>Lv. ${fight['Level']}</td>
-                                <td rowspan="1" class='align-middle'>${fight['Result']}</td>
-                                <td rowspan="1" class='align-middle'>${parseFloat(fight['Reward']).toFixed(6)} SKILL<br />${(Number(parseFloat(fight['Reward'])) > 0 ? `<span style="font-size: 10px;">(${toLocaleCurrency(skill)})</span>` : '')}</td>
-                                <td rowspan="1" class='align-middle'>${parseFloat(fight['Gas']).toFixed(6)} BNB<br />${(Number(parseFloat(fight['Gas'])) > 0 ? `<span style="font-size: 10px;">(${toLocaleCurrency(gas)})</span>` : '')}</td>
-                                <td rowspan="1" class='align-middle'>${toLocaleCurrency(profit)}</td>
+                                <td class='align-middle'>${fight['Name']}</td>
+                                <td class='align-middle'>${fight['Address'].substr(0, 6)}...${fight['Address'].substr(-4, 4)}</td>
+                                <td class='align-middle'>Lv. ${fight['Level']}</td>
+                                <td class='align-middle'>${fight['Result']}</td>
+                                <td class='align-middle'>${parseFloat(fight['Reward']).toFixed(6)} SKILL<br />${(Number(parseFloat(fight['Reward'])) > 0 ? `<span style="font-size: 10px;">(${toLocaleCurrency(skill)})</span>` : '')}</td>
+                                <td class='align-middle'>${parseFloat(fight['Gas']).toFixed(6)} BNB<br />${(Number(parseFloat(fight['Gas'])) > 0 ? `<span style="font-size: 10px;">(${toLocaleCurrency(gas)})</span>` : '')}</td>
+                                <td class='align-middle'>${toLocaleCurrency(profit)}</td>
                             </tr>`;
         return rowHtml
     }))
-    $table.html(fRowHtml)
     totalTotal = `<tr class="text-white align-middle">
                     <td colspan="3" style="text-align: right">Total</td>
-                    <td rowspan="1" class='align-middle'>${wins}/${fights}</td>
-                    <td rowspan="1" class='align-middle'>${parseFloat(totalSkill).toFixed(6)} SKILL<br />${(Number(parseFloat(totalSkill)) > 0 ? `<span style="font-size: 10px;">(${toLocaleCurrency(convertToFiat(totalSkill))})</span>` : '')}</td>
-                    <td rowspan="1" class='align-middle'>${parseFloat(totalGas).toFixed(6)} BNB<br />${(Number(parseFloat(totalGas)) > 0 ? `<span style="font-size: 10px;">(${toLocaleCurrency(convertBnbToFiat(totalGas))})</span>` : '')}</td>
-                    <td rowspan="1" class='align-middle'>${toLocaleCurrency(totalProfit)}</td>
+                    <td class='align-middle'>${wins}/${fights}</td>
+                    <td class='align-middle'>${parseFloat(totalSkill).toFixed(6)} SKILL<br />${(Number(parseFloat(totalSkill)) > 0 ? `<span style="font-size: 10px;">(${toLocaleCurrency(convertToFiat(totalSkill))})</span>` : '')}</td>
+                    <td class='align-middle'>${parseFloat(totalGas).toFixed(6)} BNB<br />${(Number(parseFloat(totalGas)) > 0 ? `<span style="font-size: 10px;">(${toLocaleCurrency(convertBnbToFiat(totalGas))})</span>` : '')}</td>
+                    <td class='align-middle'>${toLocaleCurrency(totalProfit)}</td>
                   </tr>`
-    $table.append(totalTotal)
+    $fightsTable.html(fRowHtml + totalTotal)
 }
+
+async function addToSummary(){
+    $earningsTable.html('')
+    const fRowHtml = await Promise.all(Object.keys(totalSummary).map(async (key, i) => {
+        let rowHtml = ''
+        let totalSkill = totalSummary[key][3]
+        let totalGas = web3.utils.fromWei(BigInt(totalSummary[key][4]).toString(), 'ether')
+        let totalSkillConverted = convertToFiat(totalSkill)
+        let totalGasConverted = convertBnbToFiat(totalGas)
+        let totalProfit = totalSkillConverted - totalGasConverted
+        rowHtml += ` <tr class="text-white align-middle" data-row="${i}">
+                                <td class='align-middle'>${totalSummary[key][0]}</td>
+                                <td class='align-middle'>${key.substr(0, 6)}...${key.substr(-4, 4)}</td>
+                                <td class='align-middle'>${totalSummary[key][1]} / ${totalSummary[key][2]}</td>
+                                <td class='align-middle'>${totalSkill.toFixed(6)} SKILL<br />${(Number(totalSkill) > 0 ? `<span style="font-size: 10px;">(${toLocaleCurrency(totalSkillConverted)})</span>` : '')}</td>
+                                <td class='align-middle'>${parseFloat(totalGas).toFixed(6)} BNB<br />${(Number(parseFloat(totalGas)) > 0 ? `<span style="font-size: 10px;">(${toLocaleCurrency(totalGasConverted)})</span>` : '')}</td>
+                                <td class='align-middle'>${toLocaleCurrency(totalProfit)}</td>
+                            </tr>`;
+        return rowHtml
+    }))
+    $earningsTable.html(fRowHtml)
+}
+
+
 function exportList() {
     var list = fightAddress.val().split('\n')
     list.splice(list.length-1, 1)

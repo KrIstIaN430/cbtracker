@@ -37,7 +37,7 @@ main.page-wrapper
                   .col-auto
                     button.btn.btn-sm.btn-warning.mb-1(style='margin-top: -15px !important;' type='button' onclick='exportLogs()')
                       | Export Logs
-                table#table-accounts.table.table-sm.card-table.table-bordered
+                table#fight-logs.table.table-sm.card-table.table-bordered
                     thead.text-center
                       tr
                         th.text-white
@@ -60,4 +60,23 @@ main.page-wrapper
                           | Total
                         th.text-white
                           | 0
+                .row
+                  .col
+                    label.text-white.mb-1 Earnings Summary
+                table#earnings-summary.table.table-sm.card-table.table-bordered
+                    thead.text-center
+                      tr
+                        th.text-white
+                          | Name
+                        th.text-white
+                          | Address
+                        th.text-white
+                          | Wins
+                        th.text-white
+                          | Total Reward
+                        th.text-white
+                          | Total Gas Fee
+                        th.text-white
+                          | TotalProfit
+                    tbody.text-center
 include ../footer

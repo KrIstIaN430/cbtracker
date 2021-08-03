@@ -9,6 +9,8 @@
         form
             .p.text-white.mb-3 Add the account you want to capture fight results
             .form-group.mb-3
+                input#logger-name.form-control.form-control.bg-dark(type='text' placeholder='Account Name')
+            .form-group.mb-3
                 input#logger-address.form-control.form-control.bg-dark(type='text' placeholder='Address')
             button.btn.btn-secondary.float-right(type='button' onclick='addAccount()')
                 | Add
