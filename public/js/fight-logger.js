@@ -1,5 +1,6 @@
 let subs = {}
-let names = []
+let storeNames = {}
+let storeAccounts = []
 let txs = []
 let fightInterval = 10 //seconds
 var currCurrency = 'php'
@@ -8,12 +9,20 @@ var skillPrice = 0
 var localPrice = 0
 var bnbPrice = 0
 var usdPrice = 0
-
+var accounts = localStorage.getItem('accounts')
+var names = localStorage.getItem('names')
+if (accounts && names) {
+    storeAccounts = JSON.parse(accounts)
+    storeNames = JSON.parse(names)
+}
 $('document').ready(async () => {
     priceTicker()
     setInterval(() => {
         priceTicker()
     }, 30000)
+    // console.log(accounts)
+    for (const address of storeAccounts) { subscribe(storeNames[address], address); }
+    
 })
 
 const fightAddress = $('#fight-address')
@@ -21,8 +30,9 @@ var fightResult = []
 var $fightsTable = $('#fight-logs tbody')
 var $earningsTable = $('#earnings-summary tbody')
 
+
 async function subscribe (name, address) {
-    names.push(name)
+    fightAddress.append(`${address}\n`)
     console.log('Subscribed:', name, address)
     totalSummary[address] = [name, 0, 0, 0, 0]
     subs[address] = setInterval(async() => {
@@ -94,9 +104,12 @@ async function priceTicker() {
 async function addAccount() {
     var name = $('#logger-name').val().trim()
     var address = $('#logger-address').val().trim()
-    if (!Object.keys(subs).includes(address) && isAddress(address) && !(names.includes(name))) {
+    if (!Object.keys(subs).includes(address) && isAddress(address) && !Object.keys(storeNames).includes(name)) {
         await subscribe(name, address)
-        fightAddress.append(`${address}\n`)
+        storeAccounts.push(address)
+        storeNames[address] = name
+        if (storeAccounts) localStorage.setItem('accounts', JSON.stringify(storeAccounts))
+        if (storeNames) localStorage.setItem('names', JSON.stringify(storeNames))
         $('#modal-add-account').modal('hide')
         $('#logger-name').val('')
         // test()
